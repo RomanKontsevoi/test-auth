@@ -1,7 +1,55 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client'
+import {
+  areTokensInCookies,
+  areTokensInUrl,
+  checkLocalStorageTokens,
+  clearTokensFromUrl,
+  storeTokensFromCookies,
+  storeTokensFromUrl
+} from '@/app/utils'
+import Image from 'next/image'
+import { useRouter } from 'next/navigation'
+import { useCallback, useEffect, useState } from 'react'
+import styles from './page.module.css'
 
 export default function Home() {
+  const router = useRouter()
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+  useEffect(() => {
+    if (checkLocalStorageTokens()) {
+      setIsAuthenticated(true)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (areTokensInCookies()) {
+      storeTokensFromCookies()
+      setIsAuthenticated(true)
+      router.replace(window.location.pathname, {})
+    }
+
+    if (areTokensInUrl()) {
+      storeTokensFromUrl()
+      clearTokensFromUrl()
+      setIsAuthenticated(true)
+    }
+  }, [router])
+
+  const redirectToLogin = useCallback(({ language = 'en' }) => {
+    const { search } = window.location
+
+    const currentParams = new URLSearchParams(search)
+
+    currentParams.set('lang', language)
+
+    const params = new URLSearchParams({
+      redirect_uri: encodeURIComponent(`${window.origin}/?${currentParams}`)
+    })
+
+    window.location.href = `${process.env.NEXT_PUBLIC_AUTH_URL}?${params}`
+  }, [])
+
   return (
     <div className={styles.page}>
       <main className={styles.main}>
@@ -13,19 +61,10 @@ export default function Home() {
           height={38}
           priority
         />
-        <ol>
-          <li>
-            Get started by editing <code>src/app/page.tsx</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
         <div className={styles.ctas}>
-          <a
+          <button
             className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            onClick={() => redirectToLogin({})}
           >
             <Image
               className={styles.logo}
@@ -34,16 +73,8 @@ export default function Home() {
               width={20}
               height={20}
             />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
+            {isAuthenticated ? 'Sign Out' : 'Sign In'}
+          </button>
         </div>
       </main>
       <footer className={styles.footer}>
@@ -91,5 +122,5 @@ export default function Home() {
         </a>
       </footer>
     </div>
-  );
+  )
 }
