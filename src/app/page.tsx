@@ -1,11 +1,11 @@
 'use client'
+import { loginByAuthCode, refreshAccessToken } from '@/app/services'
 import {
-  areTokensInCookies,
-  areTokensInUrl,
-  checkLocalStorageTokens,
-  clearTokensFromUrl,
-  storeTokensFromCookies,
-  storeTokensFromUrl
+  clearCodeFromUrl, deleteTokensInLocalStorage,
+  getLocalStorageTokens,
+  getUrlCode,
+  isAccessTokenExpired,
+  setTokensInLocalStorage
 } from '@/app/utils'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
@@ -17,23 +17,52 @@ export default function Home() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   useEffect(() => {
-    if (checkLocalStorageTokens()) {
-      setIsAuthenticated(true)
-    }
-  }, [])
+    const authenticateUser = async () => {
+      const { access_token, refresh_token } = getLocalStorageTokens()
 
-  useEffect(() => {
-    if (areTokensInCookies()) {
-      storeTokensFromCookies()
-      setIsAuthenticated(true)
-      router.replace(window.location.pathname, {})
+      if (access_token && refresh_token) {
+        if (isAccessTokenExpired(access_token)) {
+          try {
+            const {
+              access_token: newAccessToken,
+              refresh_token: newRefreshToken
+            } = await refreshAccessToken(refresh_token)
+            setTokensInLocalStorage(newAccessToken, newRefreshToken)
+            setIsAuthenticated(true)
+          } catch (error) {
+            console.error('Failed to refresh token:', error)
+          }
+        } else {
+          setIsAuthenticated(true)
+          return
+        }
+      }
+
+      const { code, currentParams } = getUrlCode()
+
+      console.log({ code, currentParams })
+
+      if (code) {
+        clearCodeFromUrl(currentParams)
+
+        try {
+          const response = await loginByAuthCode({ code })
+
+          console.log({ response })
+
+          const { accessToken, refreshToken } = response.data
+
+          if (accessToken && refreshToken) {
+            setTokensInLocalStorage(accessToken, refreshToken)
+            setIsAuthenticated(true)
+          }
+        } catch (error) {
+          console.error('Authentication failed:', error)
+        }
+      }
     }
 
-    if (areTokensInUrl()) {
-      storeTokensFromUrl()
-      clearTokensFromUrl()
-      setIsAuthenticated(true)
-    }
+    authenticateUser()
   }, [router])
 
   const redirectToLogin = useCallback(({ language = 'en' }) => {
@@ -50,6 +79,11 @@ export default function Home() {
     window.location.href = `${process.env.NEXT_PUBLIC_AUTH_URL}?${params}`
   }, [])
 
+  const handleLogout = () => {
+    setIsAuthenticated(false)
+    deleteTokensInLocalStorage()
+  }
+
   return (
     <div className={styles.page}>
       <main className={styles.main}>
@@ -64,7 +98,9 @@ export default function Home() {
         <div className={styles.ctas}>
           <button
             className={styles.primary}
-            onClick={() => redirectToLogin({})}
+            onClick={() => isAuthenticated ?
+              handleLogout() :
+              redirectToLogin({})}
           >
             <Image
               className={styles.logo}

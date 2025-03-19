@@ -1,21 +1,7 @@
-export function getCookie(name: string) {
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) {
-    return parts.pop()?.split(';').shift();
-  }
-}
-
-export function checkLocalStorageTokens() {
-  const access_token_local = localStorage.getItem('access_token');
-  const refresh_token_local = localStorage.getItem('refresh_token');
-  return access_token_local && refresh_token_local;
-}
-
-export function getCookieTokens() {
-  const access_token_cookie = getCookie('access_token');
-  const refresh_token_cookie = getCookie('refresh_token');
-  return { access_token_cookie, refresh_token_cookie };
+export function getLocalStorageTokens() {
+  const access_token = localStorage.getItem('access_token');
+  const refresh_token = localStorage.getItem('refresh_token');
+  return { access_token, refresh_token }
 }
 
 export function setTokensInLocalStorage(access_token: string, refresh_token: string) {
@@ -23,44 +9,27 @@ export function setTokensInLocalStorage(access_token: string, refresh_token: str
   localStorage.setItem('refresh_token', refresh_token);
 }
 
-export function areTokensInCookies() {
-  const { access_token_cookie, refresh_token_cookie } = getCookieTokens();
-  return access_token_cookie && refresh_token_cookie;
+export const deleteTokensInLocalStorage = () => {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('refresh_token');
 }
 
-export function storeTokensFromCookies() {
-  const { access_token_cookie, refresh_token_cookie } = getCookieTokens();
-  if (access_token_cookie && refresh_token_cookie) {
-    setTokensInLocalStorage(access_token_cookie, refresh_token_cookie);
-  }
-}
-
-export function getUrlTokens() {
+export function getUrlCode() {
   const { search } = window.location;
   const currentParams = new URLSearchParams(search);
-
-  const access_token_url = currentParams.get('access_token');
-  const refresh_token_url = currentParams.get('refresh_token');
-
-  return { access_token_url, refresh_token_url, currentParams };
+  const code = currentParams.get('code');
+  return { code, currentParams };
 }
 
-export function areTokensInUrl() {
-  const { access_token_url, refresh_token_url } = getUrlTokens();
-  return access_token_url && refresh_token_url;
-}
-
-export function storeTokensFromUrl() {
-  const { access_token_url, refresh_token_url } = getUrlTokens();
-  if (access_token_url && refresh_token_url) {
-    setTokensInLocalStorage(access_token_url, refresh_token_url);
-  }
-}
-
-export function clearTokensFromUrl() {
-  const { currentParams } = getUrlTokens();
-  currentParams.delete('access_token');
-  currentParams.delete('refresh_token');
+export function clearCodeFromUrl(currentParams: URLSearchParams) {
+  currentParams.delete('code');
   const newUrl = window.location.pathname + '?' + currentParams.toString();
   window.history.replaceState({}, '', newUrl);
 }
+
+export function isAccessTokenExpired(access_token: string): boolean {
+  const payload = JSON.parse(atob(access_token.split('.')[1]));
+  const currentTime = Math.floor(Date.now() / 1000);
+  return payload.exp < currentTime;
+}
+
