@@ -73,7 +73,8 @@ export default function Home() {
     currentParams.set('lang', language)
 
     const params = new URLSearchParams({
-      redirect_uri: encodeURIComponent(`${window.origin}/?${currentParams}`)
+      redirect_uri: encodeURIComponent(`${window.origin}/?${currentParams}`),
+      inf_check: 'true'
     })
 
     window.location.href = `${process.env.NEXT_PUBLIC_AUTH_URL}?${params}`
